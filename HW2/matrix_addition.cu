@@ -1,6 +1,8 @@
 #include <cuda.h>
 #include <cstdio>
 #include <stdio.h>
+#include <sys/time.h>
+#define N_ITER 10000
 
 /*
     CPU implementation of matrix addition
@@ -57,89 +59,159 @@ void initialData(float *ip, int size) {
 
 /*
     Function to check the result of the GPU computation.
-    This code is from the lecture.
+    This code is from the lecture. The function returns true if results match, false otherwise.
 */
 
-void checkResult(float *hostRef, float *gpuRef, const int N) {
+bool checkResult(float *hostRef, float *gpuRef, const int N) {
     double eps = 1.0E-8;
-    bool match = 1;
     for (int i=0; i < N; i++) {
         if (abs(hostRef[i] - gpuRef[i]) > eps) {
-            match = 0;
-            printf("Arrays do not match \n");
-            printf("host %5.2f gpu %5.2f at current %d\n", hostRef[i], gpuRef[i], i);
+            return false;
         }
     }
-    if (match) printf("Arrays match \n\n");
+    return true;
 }
 
-int main() 
+/*
+    This function returns the current cpu time in milliseconds.
+    This code is from the lecture.
+*/
+double cpuSecond()
 {
+    struct timeval tp;
+    gettimeofday(&tp, NULL);
+    return (double)tp.tv_sec + (double)tp.tv_usec * 1.e-6;
+}
+
+
+/*
+    This function runs matrix addition on both CPU and GPU for given matrix size and block size.
+    The time is taken for both CPU and GPU computations. To get an accuracte estimation, the test is run for 10.000 iterations.
+    The function returns the average time for both CPU and GPU computations.
+*/
+bool run_test(int matrix_width, int matrix_height, int block_width, int block_height, double* cpu_avg_time, double* gpu_avg_time, bool skip_cpu=false) 
+{
+    // define all pointers
     float *h_A, *h_B, *h_C;
     float *h_A_GPU, *h_B_GPU, *h_C_GPU;
     float *h_C_result_from_GPU;
 
-    int width = 200;
-    int height = 200;
+    // calculate size of matrix and allocate memory
+    int width = matrix_width;
+    int height = matrix_height;
     int size = width * height;
     int nBytes = size * sizeof(float);
     h_A = (float*) malloc(nBytes);
     h_B = (float*) malloc(nBytes);
     h_C = (float*) malloc(nBytes);
+
+    // allocate extra memory to store result from GPU as we will compare CPU and GPU results
     h_C_result_from_GPU = (float*) malloc(nBytes);
 
+    // allocate device memory on GPU
     cudaMalloc((float**)&h_A_GPU, nBytes);
     cudaMalloc((float**)&h_B_GPU, nBytes);
     cudaMalloc((float**)&h_C_GPU, nBytes);
-    printf("Matrix Addition of size %d x %d\n", width, height);
+
+    // randomly initialize data
     initialData(h_A, size);
     initialData(h_B, size);
-    printf("Data initialization done.\n");
-    /*
-    Copy data from host to device
-    */
+    
+    // Copy data from host to device (not part of timing)    
     cudaMemcpy(h_A_GPU, h_A, nBytes, cudaMemcpyHostToDevice);
     cudaMemcpy(h_B_GPU, h_B, nBytes, cudaMemcpyHostToDevice);
-    printf("Data copy to device done.\n");
+    
+    // Measure CPU time using std::chrono wrapper above
+    double cpu_start = cpuSecond();
+    if (!skip_cpu) {
+        for (int i = 0; i < N_ITER; i++) {
+            CpuMatrixAddition1D(h_A, h_B, h_C, width, height);
+        }
+    }
+    double cpu_end = cpuSecond();
+    double cpu_time_sec = cpu_end - cpu_start; // seconds
+    double cpu_time_ms = cpu_time_sec * 1000.0; // milliseconds
+    // average per iteration in milliseconds
+    *cpu_avg_time = (double)(cpu_time_ms / N_ITER);    
 
-    /*
-    Run CPU matrix addition
-    */
-    CpuMatrixAddition1D(h_A, h_B, h_C, width, height);
-    printf("CPU matrix addition done.\n");
-
-    /*
-    Run GPU matrix addition
-    */
-
-    int block_width = 16;
-    int block_height = 16;
+    // calculate Block and Grid dimensions according to input (from the lecture)
     dim3 block(block_width, block_height);
     dim3 grid(ceil(width/(float)block_width), ceil(height/(float)block_height), 1);
-    MatAddKernel1D<<<grid, block>>>(h_A_GPU, h_B_GPU, h_C_GPU, width, height);
-    printf("GPU matrix addition done.\n");
-    cudaDeviceSynchronize();
 
-    /*
-    Copy result from device to host
-    */
+    double gpu_start = cpuSecond();
+    for (int i = 0; i < N_ITER; i++)  {
+        MatAddKernel1D<<<grid, block>>>(h_A_GPU, h_B_GPU, h_C_GPU, width, height);
+        cudaDeviceSynchronize();
+    }
+    double gpu_end = cpuSecond();
+    double gpu_time = gpu_end - gpu_start;
+    *gpu_avg_time = (double) gpu_time / N_ITER;
+
+    // Copy result from device to host
     cudaMemcpy(h_C_result_from_GPU, h_C_GPU, nBytes, cudaMemcpyDeviceToHost);
-    printf("Data copy to host done.\n");
 
-    /*
-    Check results
-    */
-    checkResult(h_C, h_C_result_from_GPU, size);
-    printf("Result check done.\n");
-    /*
-    Free memory
-    */
+
+    bool result = checkResult(h_C, h_C_result_from_GPU, size);
+
+    // Free memory
     free(h_A);
     free(h_B);
     free(h_C);
+    free(h_C_result_from_GPU);
     cudaFree(h_A_GPU);
     cudaFree(h_B_GPU);
-    cudaFree(h_C_GPU);
+    cudaFree(h_C_GPU);   
+    if (skip_cpu) {
+        return true;
+    }
+    return result;
+}
+
+int main() 
+{
+    /*
+        Task 2 requires the following tests:
+         - Matrix sizes: 10x10, 100x100, 1000x1000, 100x10000
+        here, only GPU time is relevant
+    */
+    printf("Results for task 2:\n");
+
+    int matrix_sizes[4][2] = { {10, 10}, {100, 100}, {1000, 1000}, {100, 10000} };
+    int block_height = 16; 
+    int block_width = 16;
+
+    for (int i = 0; i < 4; i++) {
+        int matrix_width = matrix_sizes[i][0];
+        int matrix_height = matrix_sizes[i][1];
+        double cpu_avg_time = 0.0f;
+        double gpu_avg_time = 0.0f;
+        bool result = run_test(matrix_width, matrix_height, block_width, block_height, &cpu_avg_time, &gpu_avg_time);
+        if (result) {
+            printf("Matrix Size: %dx%d, Block Size: %dx%d => CPU Avg Time: %.6f ms, GPU Avg Time: %.6f ms\n", 
+                matrix_width, matrix_height, block_width, block_height, cpu_avg_time * 1000, gpu_avg_time * 1000);
+        } else {
+            printf("Results do not match for Matrix Size: %dx%d\n", matrix_width, matrix_height);
+        }
+    }
+    printf("\n\n\nResults for task 4:\n");
+    /* task 4 requires to test different block sizes for matrix size 100x10000 */
+    int matrix_width = 100;
+    int matrix_height = 10000;
+    int block_sizes[3][2] = { {16, 16}, {16, 32}, {32, 16}}; 
+
+    for (int i = 0; i < 3; i++) {
+        int block_width = block_sizes[i][0];
+        int block_height = block_sizes[i][1];
+        double cpu_avg_time = 0.0f;
+        double gpu_avg_time = 0.0f;
+        bool result = run_test(matrix_width, matrix_height, block_width, block_height, &cpu_avg_time, &gpu_avg_time, true);
+        if (result) {
+            printf("Matrix Size: %dx%d, Block Size: %dx%d => CPU Avg Time: %.6f ms, GPU Avg Time: %.6f ms\n", 
+                matrix_width, matrix_height, block_width, block_height, cpu_avg_time * 1000, gpu_avg_time * 1000);
+        } else {
+            printf("Results do not match for Matrix Size: %dx%d\n", matrix_width, matrix_height);
+        }
+    }
 
     return 0;
 }
