@@ -81,9 +81,9 @@ void cpu_global_ilp4(float *vec, size_t ilp_num)
 }
 
 
-__global__ void gpu_ilp1(float *vec, float a, float b, float c, size_t ilp_num) 
+__global__ void gpu_ilp1(float *vec, float a_in, float b, float c, size_t ilp_num) 
 {
-    
+    float a = a_in;
 #pragma unroll 16
         for (int i = 0; i < NUM_ITERATIONS; i++) 
         {
@@ -93,16 +93,19 @@ __global__ void gpu_ilp1(float *vec, float a, float b, float c, size_t ilp_num)
     // "store in global memory"
     vec[1 * (blockIdx.x * blockDim.x + threadIdx.x) + 0] = a;   
 }
-__global__ void gpu_ilp4(float *vec, float a, float b, float c, size_t ilp_num) 
+__global__ void gpu_ilp4(float *vec, float a_in, float b, float c, size_t ilp_num) 
 {
-    float a0, a1, a2, a3;
+    float a0 = a_in;
+    float a1 = a_in;
+    float a2 = a_in;
+    float a3 = a_in;
 #pragma unroll 16
         for (int i = 0; i < NUM_ITERATIONS; i++) 
         {
-            a0 = a * b + c;
-            a1 = a * b + c;
-            a2 = a * b + c;
-            a3 = a * b + c;
+            a0 = a0 * b + c;
+            a1 = a1 * b + c;
+            a2 = a2 * b + c;
+            a3 = a3 * b + c;
         }
     
     // "store in global memory"
@@ -130,8 +133,10 @@ double cpuSecond()
     return (double)tp.tv_sec + (double)tp.tv_usec * 1.e-6;
 }
 
-void run_ilp(double* cpu_time, double* gpu_time, bool global_mem = false, bool ilp4 = false)
+void run_ilp(bool global_mem = false, bool ilp4 = false)
 {
+    double cpu_time;
+    double gpu_time;
     float a = 1.0f;
     float b = 2.0f;
     float c = 3.0f;
@@ -160,7 +165,7 @@ void run_ilp(double* cpu_time, double* gpu_time, bool global_mem = false, bool i
 
     cudaMemcpy(cpu_vec_gpu, gpu_vec, vector_size_bytes, cudaMemcpyDeviceToHost);
 
-    for (int i = 1; i <= max_blocks; i++) {
+    for (int i = 1; i <= max_blocks; i = i * 2) {
         dim3 gridDim(i, 1);
         size_t n = gridDim.x * gridDim.y * blockDim.x * blockDim.y;
         size_t total_op = 1 * NUM_ITERATIONS * n;
@@ -179,10 +184,9 @@ void run_ilp(double* cpu_time, double* gpu_time, bool global_mem = false, bool i
             cpu_global_ilp1(cpu_vec, n);
         }
         t_end = cpuSecond();
-        *cpu_time = t_end - t_start;
-        flops =( 1e-6 * total_op) / (*cpu_time);
+        cpu_time = t_end - t_start;
+        flops =( 1e-6 * total_op) / (cpu_time);
         printf("cpu/%s/%s: %zu MFLOP/s\n", global_mem ? "global" : "local", ilp4 ? "ilp4" : "ilp1", (size_t)flops);
-
 
         // gpu computation
         t_start = cpuSecond();
@@ -198,14 +202,14 @@ void run_ilp(double* cpu_time, double* gpu_time, bool global_mem = false, bool i
         cudaGetLastError();
         cudaDeviceSynchronize();
         t_end = cpuSecond();
-        *gpu_time = t_end - t_start;
-        flops = (1e-6 * total_op) / (*gpu_time);
-        printf("gpu/ilp1/%zu: %zu MFLOP/s\n", n, (size_t)flops);
+        gpu_time = t_end - t_start;
+        flops = (1e-6 * total_op) / gpu_time;
+        printf("gpu/%s/%s/%zu: %zu MFLOP/s\n", global_mem ? "global" : "local", ilp4 ? "ilp4" : "ilp1", n, (size_t)flops);
     }
 
 
 
-    if (checkResult(cpu_vec, cpu_vec_gpu, vector_size)) {
+    if (!checkResult(cpu_vec, cpu_vec_gpu, vector_size)) {
         fprintf(stderr, "Results do not match!\n");
         exit(EXIT_FAILURE);
     }
@@ -217,10 +221,9 @@ void run_ilp(double* cpu_time, double* gpu_time, bool global_mem = false, bool i
 
 
 int main() {
-    // compare gpu_ilp1 and cpu_ilp1
-    double cpu_time, gpu_time;
-    run_ilp(&cpu_time, &gpu_time);
-    int num_op = 1 * NUM_ITERATIONS * NUM_REPETITIONS;
-    
+    // compare gpu_ilp1 and cpu_ilp1 local
+    // run_ilp(false, false); 
+    // compare gpu_ilp4 and cpu_ilp4 local
+    run_ilp(false, true);    
 
 }  
