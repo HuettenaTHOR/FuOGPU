@@ -5,8 +5,7 @@
 #include <assert.h>
 
 
-#define NUM_ITERATIONS 1024*1024
-#define NUM_REPETITIONS 512
+#define NUM_ITERATIONS 512*1024
 
 void cpu_ilp1(float *vec, float a, float b, float c, size_t ilp_num)
 {
@@ -25,30 +24,28 @@ void cpu_ilp1(float *vec, float a, float b, float c, size_t ilp_num)
 
 void cpu_ilp4(float *vec, float a, float b, float c, size_t ilp_num)
 {
-    for(int k = 0; k < ilp_num; k++)
-    {
-        for (int k = 0; k < ilp_num; k++) {
-            float a0 = a;
-            float a1 = a;
-            float a2 = a;
-            float a3 = a;
+    
+    for (int k = 0; k < ilp_num; k++) {
+        float a0 = a;
+        float a1 = a;
+        float a2 = a;
+        float a3 = a;
         
 #pragma unroll 16
-            for(int i = 0; i < NUM_ITERATIONS; i++)
-            {
-                a0 = a0 * b + c;
-                a1 = a1 * b + c;
-                a2 = a2 * b + c;
-                a3 = a3 * b + c;
-            }
-            size_t base = 4 * k;
-            //store globally
-            vec[base + 0] = a0;
-            vec[base + 1] = a1;
-            vec[base + 2] = a2;
-            vec[base + 3] = a3;
-        }
-    }
+        for(int i = 0; i < NUM_ITERATIONS; i++)
+        {
+            a0 = a0 * b + c;
+            a1 = a1 * b + c;
+            a2 = a2 * b + c;
+            a3 = a3 * b + c;
+        }       
+        size_t base = 4 * k;
+        //store globally
+        vec[base + 0] = a0;
+        vec[base + 1] = a1;
+        vec[base + 2] = a2;
+        vec[base + 3] = a3;
+    } 
 }
 
 void cpu_global_ilp1(float *vec, size_t ilp_num)
@@ -58,7 +55,7 @@ void cpu_global_ilp1(float *vec, size_t ilp_num)
 #pragma unroll 16
         for (int i = 0; i < NUM_ITERATIONS; i++)
         {
-            size_t base = 1 * (i * ilp_num + k);
+            size_t base = 1 * k;
             vec[base + 0] *= 3;
         }
     }
@@ -71,7 +68,7 @@ void cpu_global_ilp4(float *vec, size_t ilp_num)
 #pragma unroll 16
         for (int i = 0; i < NUM_ITERATIONS; i++)
         {
-            size_t base =  4 * (i*ilp_num + k);
+            size_t base =  4 * k;
             vec[base + 0] *= 3;
             vec[base + 1] *= 3;
             vec[base + 2] *= 3;
@@ -109,10 +106,33 @@ __global__ void gpu_ilp4(float *vec, float a_in, float b, float c, size_t ilp_nu
         }
     
     // "store in global memory"
-    vec[1 * (blockIdx.x * blockDim.x + threadIdx.x) + 0] = a0;
-    vec[1 * (blockIdx.x * blockDim.x + threadIdx.x) + 1] = a1;
-    vec[1 * (blockIdx.x * blockDim.x + threadIdx.x) + 2] = a2;
-    vec[1 * (blockIdx.x * blockDim.x + threadIdx.x) + 3] = a3;
+    vec[4 * (blockIdx.x * blockDim.x + threadIdx.x) + 0] = a0;
+    vec[4 * (blockIdx.x * blockDim.x + threadIdx.x) + 1] = a1;
+    vec[4 * (blockIdx.x * blockDim.x + threadIdx.x) + 2] = a2;
+    vec[4 * (blockIdx.x * blockDim.x + threadIdx.x) + 3] = a3;
+}
+
+__global__ void gpu_global_ilp1(float *vec, size_t ilp_num) 
+{
+#pragma unroll 16
+    for (int i = 0; i < NUM_ITERATIONS; i++) 
+    {
+        size_t base = 1 * (blockIdx.x * blockDim.x + threadIdx.x);
+        vec[base + 0] *= 3;
+    }
+}
+
+__global__ void gpu_global_ilp4(float *vec, size_t ilp_num) 
+{
+#pragma unroll 16
+    for (int i = 0; i < NUM_ITERATIONS; i++) 
+    {
+        size_t base = 4 * (blockIdx.x * blockDim.x + threadIdx.x);
+        vec[base + 0] *= 3;
+        vec[base + 1] *= 3;
+        vec[base + 2] *= 3;
+        vec[base + 3] *= 3;
+    }
 }
 
 
@@ -133,7 +153,7 @@ double cpuSecond()
     return (double)tp.tv_sec + (double)tp.tv_usec * 1.e-6;
 }
 
-void run_ilp(bool global_mem = false, bool ilp4 = false)
+void run_ilp(float* result, bool gpu = true, bool global_mem = false, bool ilp4 = false)
 {
     double cpu_time;
     double gpu_time;
@@ -150,7 +170,7 @@ void run_ilp(bool global_mem = false, bool ilp4 = false)
         unrolling = 1;
     }
 
-    const size_t max_blocks = 256;
+    const size_t max_blocks = 2048;
     const size_t vector_size = blockDim.x * blockDim.y * max_blocks * unrolling;
 
     const size_t vector_size_bytes = vector_size * sizeof(float);
@@ -160,60 +180,55 @@ void run_ilp(bool global_mem = false, bool ilp4 = false)
     float* gpu_vec;
     cudaMalloc((void**)&gpu_vec, vector_size_bytes);
 
-    gpu_ilp1<<<1, 1>>>(gpu_vec, 0, 0, 0, 0);
-
-
     cudaMemcpy(cpu_vec_gpu, gpu_vec, vector_size_bytes, cudaMemcpyDeviceToHost);
 
-    for (int i = 1; i <= max_blocks; i = i * 2) {
+    for (int i = 1; i <= max_blocks; i = i + 16) {
         dim3 gridDim(i, 1);
         size_t n = gridDim.x * gridDim.y * blockDim.x * blockDim.y;
-        size_t total_op = 1 * NUM_ITERATIONS * n;
+    // account for unrolling (ILP) and two FLOPs per a = a*b + c (mul + add)
+    size_t total_op = unrolling * NUM_ITERATIONS * n;
 
-
+        gpu_global_ilp1<<<1, 1>>>(gpu_vec, 0);
         // cpu computation
-        
-        t_start = cpuSecond();
-        if (!global_mem && !ilp4) {
-            cpu_ilp1(cpu_vec, a, b, c, n);
-        } else if (!global_mem && ilp4) {
-            cpu_ilp4(cpu_vec, a, b, c, n);
-        } else if (global_mem && ilp4) {
-            cpu_global_ilp4(cpu_vec, n);
+        if (!gpu) {
+            t_start = cpuSecond();
+            if (!global_mem && !ilp4) {
+                cpu_ilp1(cpu_vec, a, b, c, n);
+            } else if (!global_mem && ilp4) {
+                cpu_ilp4(cpu_vec, a, b, c, n);
+            } else if (global_mem && ilp4) {
+                cpu_global_ilp4(cpu_vec, n);
+            } else {
+                cpu_global_ilp1(cpu_vec, n);
+            }
+            t_end = cpuSecond();
+            cpu_time = t_end - t_start;
+            flops =( 1e-6 * total_op) / (cpu_time);
+            printf("cpu/%s/%s/%zu: %zu MFLOP/s\n", global_mem ? "global" : "local", ilp4 ? "ilp4" : "ilp1",(size_t) n, (size_t)flops);
+            *result = *cpu_vec;
         } else {
-            cpu_global_ilp1(cpu_vec, n);
+            // gpu computation
+            t_start = cpuSecond();
+            if (!global_mem && !ilp4) {
+                gpu_ilp1<<<gridDim, blockDim>>>(gpu_vec, a, b, c, n);
+            } else if (!global_mem && ilp4) {
+                gpu_ilp4<<<gridDim, blockDim>>>(gpu_vec, a, b, c, n);
+            } else if (global_mem && ilp4) {
+                gpu_global_ilp4<<<gridDim, blockDim>>>(gpu_vec, n);
+            } else {
+                gpu_global_ilp1<<<gridDim, blockDim>>>(gpu_vec, n);
+            }
+            cudaGetLastError();
+            cudaDeviceSynchronize();
+            t_end = cpuSecond();
+            gpu_time = t_end - t_start;
+            flops = (1e-6 * total_op) / gpu_time;
+            printf("gpu/%s/%s/%zu: %zu MFLOP/s\n", global_mem ? "global" : "local", ilp4 ? "ilp4" : "ilp1", n, (size_t)flops);
+
+            cudaMemcpy(cpu_vec_gpu, gpu_vec, vector_size_bytes, cudaMemcpyDeviceToHost);
+            *result = *cpu_vec_gpu;
         }
-        t_end = cpuSecond();
-        cpu_time = t_end - t_start;
-        flops =( 1e-6 * total_op) / (cpu_time);
-        printf("cpu/%s/%s: %zu MFLOP/s\n", global_mem ? "global" : "local", ilp4 ? "ilp4" : "ilp1", (size_t)flops);
-
-        // gpu computation
-        t_start = cpuSecond();
-        if (!global_mem && !ilp4) {
-            gpu_ilp1<<<gridDim, blockDim>>>(gpu_vec, a, b, c, n);
-        } else if (!global_mem && ilp4) {
-            gpu_ilp4<<<gridDim, blockDim>>>(gpu_vec, a, b, c, n);
-        } else if (global_mem && ilp4) {
-            // gpu_global_ilp4<<<gridDim, blockDim>>>(gpu_vec, n);
-        } else {
-            // gpu_global_ilp1<<<gridDim, blockDim>>>(gpu_vec, n);
-        }
-        cudaGetLastError();
-        cudaDeviceSynchronize();
-        t_end = cpuSecond();
-        gpu_time = t_end - t_start;
-        flops = (1e-6 * total_op) / gpu_time;
-        printf("gpu/%s/%s/%zu: %zu MFLOP/s\n", global_mem ? "global" : "local", ilp4 ? "ilp4" : "ilp1", n, (size_t)flops);
     }
-
-
-
-    if (!checkResult(cpu_vec, cpu_vec_gpu, vector_size)) {
-        fprintf(stderr, "Results do not match!\n");
-        exit(EXIT_FAILURE);
-    }
-
     cudaFree(gpu_vec);
     free(cpu_vec);
     free(cpu_vec_gpu);
@@ -221,9 +236,52 @@ void run_ilp(bool global_mem = false, bool ilp4 = false)
 
 
 int main() {
+    float* result_cpu;
+    float* result_gpu;
+
+    // even if this is not the best way to do it, allocate here to avoid reallocation in each run
+    result_cpu = (float*)malloc(2048 * 16 * 4 * sizeof(float));
+    result_gpu = (float*)malloc(2048 * 16 * 4 * sizeof(float));
+
     // compare gpu_ilp1 and cpu_ilp1 local
-    // run_ilp(false, false); 
-    // compare gpu_ilp4 and cpu_ilp4 local
-    run_ilp(false, true);    
+    // gpu=False for cpu, global_mem=False for local memory, ilp4=False for ilp1
+    printf("ILP1, local, CPU \n");
+    run_ilp(result_cpu, false, false, false);
+    
+    // gpu=True for gpu, global_mem=False for local memory, ilp4=False for ilp1
+    printf("ILP1, local, GPU \n");
+    run_ilp(result_gpu, true, false, false);
+
+    printf("results match: %s\n", checkResult(result_cpu, result_gpu, 2048 * 16 * 1) ? "true" : "false");
+
+    // // gpu=false for cpu, global_mem=True for global memory, ilp4=False for ilp1
+    printf("ILP1, global, CPU \n");
+    run_ilp(result_cpu, false, true, false);
+
+    // // gpu=True for gpu, global_mem=True for global memory, ilp4=False for ilp1
+    printf("ILP1, global, GPU \n");
+    run_ilp(result_gpu, true, true, false);
+
+    printf("results match: %s\n", checkResult(result_cpu, result_gpu, 2048 * 16 * 1) ? "true" : "false");
+
+    // gpu=False for cpu, global_mem=False for local memory, ilp4=True for ilp4
+    printf("ILP4, local, CPU \n");
+    run_ilp(result_cpu, false, false, true);
+
+    // gpu=True for gpu, global_mem=False for local memory, ilp4=True for ilp4
+    printf("ILP4, local, GPU \n");
+    run_ilp(result_gpu, true, false, true);
+
+    printf("results match: %s\n", checkResult(result_cpu, result_gpu, 2048 * 16 * 4) ? "true" : "false");
+
+    // gpu=false for cpu, global_mem=True for global memory, ilp4=True for ilp4
+    printf("ILP4, global, CPU \n");
+    run_ilp(result_cpu, false, true, true);
+
+    // gpu=True for gpu, global_mem=True for global memory, ilp4=True for ilp4
+    printf("ILP4, global, GPU \n");
+    run_ilp(result_gpu, true, true, true);
+
+    printf("results match: %s\n", checkResult(result_cpu, result_gpu, 2048 * 16 * 4) ? "true" : "false");
 
 }  
