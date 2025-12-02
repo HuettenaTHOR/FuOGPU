@@ -1,0 +1,25 @@
+For this Homework I (Ben Olschar 108021211678) worked in cooperation with Frederik Hütteman (108021215247).
+We did implement the code on our own, but agreed to using one version.
+
+
+The output of the code suggest the following result:
+
+calc_1 = This Kernel only does one arithmetic instruction (frain from global Memory)
+calc_2 = This Kernel does four arithmetic instructions (frain from global Memory)
+calc_3 = This Kernel only does one arithmetic instruction (using global Memory)
+calc_4 = This Kernel does four arithmetic instructions (using global Memory)
+
+When using fewer threads, one can see that the Kernel calc_2 is able to compute 4 arithmetic instructions in only double 
+the time of calc_1 with one instruction. This shows Instruction-Level-Parallelism in action and working to increase kernel performance.
+But with increasing the amount of threads, ILP becomes less effective and in the end the needed time for calc_2 is 
+indeed four times the amount of calc_1.
+
+The same can be observed with the Kernels using global Memory: Fewer threads increase the kernel performance per arithmetic instruction 
+with increasing threads the expeceted increase of needed time is four times the amount.
+
+All in all the expeceted happend as learned in the lecture: With fewer threads latencies can be hidden by doing multiple instructions
+in parallel, but with increasing threads the needed resources to hide latencies aren't available. The bound for maximum threads to still
+getting a speed up by ILP seems to be at 384 Threads for the Tesla T4. This is double of the limit seen in the lecture, this is probably
+due to the higher compute capability (7.5) of the Tesla T4 and with that a higher amount of available registers per SM. 
+The 384 Threads and 64k register per SM results in one thread having 166 available registers. This correlates with the 192 threads limit 
+seen in the lecture if we assume the used garfics card has 32k registers per SM.

@@ -1,0 +1,104 @@
+Running Task 2: Compare shared vs non-shared memory implementations
+shared vs non-shared memory CPU matrix multiplication:
+running shared memory version...
+running non-shared memory version...
+CPU Shared Memory Time: 14562.203649 s
+CPU Non-Shared Memory Time: 11574.565241 s
+Results match.
+
+shared vs non-shared memory GPU matrix multiplication:
+running shared memory version...
+running non-shared memory version...
+GPU Shared Memory Time: 1.232409 s
+GPU Non-Shared Memory Time: 1.944097 s
+Results match.
+
+
+
+Running Task 3: Compare CPU vs GPU implementations
+CPU vs GPU matrix multiplication (shared memory versions):
+running CPU version...
+running GPU version...
+CPU Time: 0.010504 s
+GPU Time: 0.000058 s
+Results match.
+
+Running Task 4.1: Analyze dependence of TILE_WIDTH
+GPU matrix multiplication (shared memory version) with TILE_WIDTH=4:
+GPU Time with TILE_WIDTH=4: 8.941602 s
+Running Task 4.1: Analyze dependence of TILE_WIDTH
+GPU matrix multiplication (shared memory version) with TILE_WIDTH=6:
+GPU Time with TILE_WIDTH=6: 4.591954 s
+Running Task 4.1: Analyze dependence of TILE_WIDTH
+GPU matrix multiplication (shared memory version) with TILE_WIDTH=8:
+GPU Time with TILE_WIDTH=8: 4.717529 s
+Running Task 4.1: Analyze dependence of TILE_WIDTH
+GPU matrix multiplication (shared memory version) with TILE_WIDTH=10:
+GPU Time with TILE_WIDTH=10: 3.147476 s
+Running Task 4.1: Analyze dependence of TILE_WIDTH
+GPU matrix multiplication (shared memory version) with TILE_WIDTH=12:
+GPU Time with TILE_WIDTH=12: 2.606590 s
+Running Task 4.1: Analyze dependence of TILE_WIDTH
+GPU matrix multiplication (shared memory version) with TILE_WIDTH=14:
+GPU Time with TILE_WIDTH=14: 2.306206 s
+Running Task 4.1: Analyze dependence of TILE_WIDTH
+GPU matrix multiplication (shared memory version) with TILE_WIDTH=16:
+GPU Time with TILE_WIDTH=16: 1.707149 s
+Running Task 4.1: Analyze dependence of TILE_WIDTH
+GPU matrix multiplication (shared memory version) with TILE_WIDTH=18:
+GPU Time with TILE_WIDTH=18: 1.684711 s
+Running Task 4.1: Analyze dependence of TILE_WIDTH
+GPU matrix multiplication (shared memory version) with TILE_WIDTH=20:
+GPU Time with TILE_WIDTH=20: 1.562358 s
+Running Task 4.1: Analyze dependence of TILE_WIDTH
+GPU matrix multiplication (shared memory version) with TILE_WIDTH=22:
+GPU Time with TILE_WIDTH=22: 1.419778 s
+Running Task 4.1: Analyze dependence of TILE_WIDTH
+GPU matrix multiplication (shared memory version) with TILE_WIDTH=24:
+GPU Time with TILE_WIDTH=24: 1.340641 s
+Running Task 4.1: Analyze dependence of TILE_WIDTH
+GPU matrix multiplication (shared memory version) with TILE_WIDTH=26:
+GPU Time with TILE_WIDTH=26: 1.443911 s
+Running Task 4.1: Analyze dependence of TILE_WIDTH
+GPU matrix multiplication (shared memory version) with TILE_WIDTH=28:
+GPU Time with TILE_WIDTH=28: 1.627100 s
+Running Task 4.1: Analyze dependence of TILE_WIDTH
+GPU matrix multiplication (shared memory version) with TILE_WIDTH=30:
+GPU Time with TILE_WIDTH=30: 1.675427 s
+Running Task 4.1: Analyze dependence of TILE_WIDTH
+GPU matrix multiplication (shared memory version) with TILE_WIDTH=32:
+GPU Time with TILE_WIDTH=32: 1.307674 s
+
+
+// for TILE_WIDTH > 32 we create >32x32 Threads which is not allowed at the GPU (1024 is the limit)
+Running Task 4.1: Analyze dependence of TILE_WIDTH
+GPU matrix multiplication (shared memory version) with TILE_WIDTH=34:
+GPU Time with TILE_WIDTH=34: 0.010339 s
+
+
+Running Task 4.2: Analyze speedup of matrix size
+Matrix size: M(100 x 50), N(50 x 100)
+CPU Time: 0.002232 s
+GPU Time: 0.000047 s
+Speedup (10000 elements in result): (CPU time / GPU time): 47.299550
+Results match.
+Matrix size: M(500 x 250), N(250 x 500)
+CPU Time: 0.290189 s
+GPU Time: 0.000127 s
+Speedup (250000 elements in result): (CPU time / GPU time): 2290.183645
+Results match.
+Matrix size: M(1000 x 500), N(500 x 1000)
+CPU Time: 2.491026 s
+GPU Time: 0.002296 s
+Speedup (1000000 elements in result): (CPU time / GPU time): 1085.173960
+Results match.
+Matrix size: M(2000 x 1000), N(1000 x 2000)
+CPU Time: 26.466413 s
+GPU Time: 0.006593 s
+Speedup (4000000 elements in result): (CPU time / GPU time): 4014.112072
+Results match.
+Matrix size: M(5000 x 2500), N(2500 x 5000)
+CPU Time: 780.202429 s
+GPU Time: 0.081067 s
+Speedup (25000000 elements in result): (CPU time / GPU time): 9624.140917
+Results match.

@@ -1,3 +1,10 @@
+/*
+    HW2 - Matrix Addition in CUDA
+    This code was implemented by me (Frederik Hüttemann, 108021215247) and cross-checked with the code of my peer (Ben Olschar, 108021211678).
+    He implemented his own code independently.
+    Both implementations were compared and found to be identical in logic and structure.
+*/
+
 #include <cuda.h>
 #include <cstdio>
 #include <stdio.h>
@@ -176,11 +183,11 @@ int main()
     */
     printf("Results for task 2:\n");
 
-    int matrix_sizes[4][2] = { {10, 10}, {100, 100}, {1000, 1000}, {100, 10000} };
+    int matrix_sizes[5][2] = { {10, 10}, {100, 100}, {500, 2000}, {1000, 1000}, {100, 10000} };
     int block_height = 16; 
     int block_width = 16;
 
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 5; i++) {
         int matrix_width = matrix_sizes[i][0];
         int matrix_height = matrix_sizes[i][1];
         double cpu_avg_time = 0.0f;

@@ -1,0 +1,39 @@
+For this Homework I (Ben Olschar 108021211678) worked in cooperation with Frederik Hütteman (108021215247).
+We did implement the code on our own, but agreed to using one version.
+
+The code was run for 1.000 times (to amortize the overheads) on the NVIDIA Tesla T4 as provided by GoogleColab.
+NUM_ITERATIONS was set to 1.000.000 to ensure a large enough amount of arithmetical work.
+
+Further explanations of the results:
+
+calc_1 = This Kernel only does one arithmetic instruction (frain from global Memory)
+calc_2 = This Kernel does four arithmetic instructions (frain from global Memory)
+calc_3 = This Kernel only does one arithmetic instruction (using global Memory)
+calc_4 = This Kernel does four arithmetic instructions (using global Memory)
+
+To get a better overview the result were sorted for the corresponding task
+
+Results with multiple different block-sizes: 
+
+Task 1:
+Calculations Done for Block-Sizes: 16 x 4; calc_1-Time: 2.88601494ms and calc_2-Time: 5.51170206ms (non global memory)
+Calculations Done for Block-Sizes: 16 x 6; calc_1-Time: 2.73901796ms and calc_2-Time: 5.50991392ms (non global memory)
+Calculations Done for Block-Sizes: 16 x 8; calc_1-Time: 2.74130416ms and calc_2-Time: 5.50268698ms (non global memory)
+Calculations Done for Block-Sizes: 16 x 10; calc_1-Time: 2.86459613ms and calc_2-Time: 10.14080906ms (non global memory)
+Calculations Done for Block-Sizes: 16 x 12; calc_1-Time: 2.86739898ms and calc_2-Time: 10.14412904ms (non global memory)
+Calculations Done for Block-Sizes: 16 x 16; calc_1-Time: 2.86274505ms and calc_2-Time: 10.14442110ms (non global memory)
+Calculations Done for Block-Sizes: 16 x 24; calc_1-Time: 3.82743883ms and calc_2-Time: 15.13554907ms (non global memory)
+Calculations Done for Block-Sizes: 16 x 32; calc_1-Time: 5.07975006ms and calc_2-Time: 20.14575887ms (non global memory)
+Calculations Done for Block-Sizes: 16 x 64; calc_1-Time: 10.09835005ms and calc_2-Time: 40.31891394ms (non global memory)
+
+Task 2:
+Calculations Done for Block-Sizes: 16 x 4; calc_3-Time: 0.02188587ms and calc_4-Time: 0.02537107ms (global memory)
+Calculations Done for Block-Sizes: 16 x 6; calc_3-Time: 0.01673317ms and calc_4-Time: 0.02922511ms (global memory)
+Calculations Done for Block-Sizes: 16 x 8; calc_3-Time: 0.01602387ms and calc_4-Time: 0.02580094ms (global memory)
+Calculations Done for Block-Sizes: 16 x 10; calc_3-Time: 0.01650691ms and calc_4-Time: 0.03523707ms (global memory)
+Calculations Done for Block-Sizes: 16 x 12; calc_3-Time: 0.01754498ms and calc_4-Time: 0.03649998ms (global memory)
+Calculations Done for Block-Sizes: 16 x 16; calc_3-Time: 0.01824594ms and calc_4-Time: 0.03720784ms (global memory)
+Calculations Done for Block-Sizes: 16 x 24; calc_3-Time: 0.01883698ms and calc_4-Time: 0.06755209ms (global memory)
+Calculations Done for Block-Sizes: 16 x 32; calc_3-Time: 0.01619196ms and calc_4-Time: 0.07754207ms (global memory)
+Calculations Done for Block-Sizes: 16 x 64; calc_3-Time: 0.01675892ms and calc_4-Time: 0.07662201ms (global memory)
+
