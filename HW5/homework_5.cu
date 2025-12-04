@@ -2,10 +2,10 @@
 #include <stdio.h>
 #include <sys/time.h>
 #include <math.h>
-"""
+/*
 For this Ben Olschar, 108021211678 and Frederik Hüttemann, 108021215247 cooperated with eachother. 
 We did implement the code on our own, but agreed to using one version. The discussion and results are made in cooperation.
-"""
+*/
 
 // define some constants
 #define CPU_NUM_ITERATIONS 100
@@ -148,7 +148,7 @@ void run_test(int task) {
             }
             double cpu_end = cpuSecond();
             double avg_time = (cpu_end - cpu_start) / CPU_NUM_ITERATIONS;
-            printf("CPU transpose: avg. time: %f ms, bandwidth: %f GB per second\n", avg_time*1e3, (num_bytes / avg_time) / 1.0e9);            
+            printf("CPU transpose: avg. time: %f ms, bandwidth: %f GB per second\n", avg_time*1e3, 2*(num_bytes / avg_time) / (1024*1024*1024));            
             break;
         }
         case 2: {
@@ -174,7 +174,7 @@ void run_test(int task) {
             double avg_time = (gpu_end - gpu_start) / GPU_NUM_ITERATIONS;
             cudaMemcpy(cpu_out, gpu_out, num_bytes, cudaMemcpyDeviceToHost);
             checkResult(cpu_in, cpu_out, width*height);
-            printf("GPU row to row copy: avg. time: %f ms, bandwidth: %f GB per second\n", avg_time*1e3, (num_bytes / avg_time) / 1.0e9);
+            printf("GPU row to row copy: avg. time: %f ms, bandwidth: %f GB per second\n", avg_time*1e3, 2*(num_bytes / avg_time) / (1024*1024*1024));
             break;
         }
         case 3: {
@@ -205,7 +205,7 @@ void run_test(int task) {
             cudaMemcpy(cpu_out, gpu_out, num_bytes, cudaMemcpyDeviceToHost);
             CPU_transpose(cpu_out_ref, cpu_in, width, height);
             checkResult(cpu_out_ref, cpu_out, width*height);
-            printf("GPU naive transpose: avg. time: %f ms, bandwidth: %f GB per second\n", avg_time*1e3, (num_bytes / avg_time) / 1.0e9);
+            printf("GPU naive transpose: avg. time: %f ms, bandwidth: %f GB per second\n", avg_time*1e3, 2*(num_bytes / avg_time) / (1024*1024*1024));
             break;
         }
         case 41: {
@@ -235,7 +235,7 @@ void run_test(int task) {
             cudaMemcpy(cpu_out, gpu_out, num_bytes, cudaMemcpyDeviceToHost);
             CPU_transpose(cpu_out_ref, cpu_in, width, height);
             checkResult(cpu_out_ref, cpu_out, width*height);
-            printf("GPU shared memory transpose (without padding): avg. time: %f ms, bandwidth: %f GB per second\n", avg_time*1e3, (num_bytes / avg_time) / 1.0e9);
+            printf("GPU shared memory transpose (without padding): avg. time: %f ms, bandwidth: %f GB per second\n", avg_time*1e3, 2*(num_bytes / avg_time) / (1024*1024*1024));
             break;
         }
 
@@ -266,7 +266,7 @@ void run_test(int task) {
             CPU_transpose(cpu_out_ref, cpu_in, width, height);
             checkResult(cpu_out_ref, cpu_out, width*height);
 
-            printf("GPU shared memory transpose (with padding --> no bank conflicts): avg. time: %f ms, bandwidth: %f GB per second\n", avg_time*1e3, (num_bytes / avg_time) / 1.0e9);
+            printf("GPU shared memory transpose (with padding --> no bank conflicts): avg. time: %f ms, bandwidth: %f GB per second\n", avg_time*1e3, 2*(num_bytes / avg_time) / (1024*1024*1024));
             break;
         }
     }
