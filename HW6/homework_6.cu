@@ -30,7 +30,7 @@ void initialData(float *ip, int size) {
 
 // from the lecture
 bool checkResult(float *hostRef, float *gpuRef, const int N) {
-    double eps = 1.0E-1;
+    double eps = 1.0E-3;
     for (int i=0; i < N; i++) {
         if (fabsf(hostRef[i] - gpuRef[i]) > eps) {
             printf("Result mismatch at index %d: host %f gpu %f\n", i, hostRef[i], gpuRef[i]);
@@ -212,6 +212,42 @@ __global__ void convolveGPU_constant(float *input, float *output) {
 }
 
 
+__global__ void upscaleGPU_texture(cudaTextureObject_t input, float *output) {
+    int xIndex = blockIdx.x*blockDim.x + threadIdx.x;
+    int yIndex = blockIdx.y*blockDim.y + threadIdx.y;
+    int gpu_index = xIndex + yIndex*TARGET_4K_WIDTH;
+    float ratio = (float)FULL_HD_WIDTH / (float)TARGET_4K_WIDTH; // should be 0.5 for 1920->3840
+
+    float base_x = ((float)xIndex) * ratio;
+    float base_y = ((float)yIndex) * ratio;
+
+    int gxi = (int)base_x;
+    int base_index_x_0 = (int)(base_x);
+    int base_index_x_1;
+    if (base_x + 1 >= FULL_HD_WIDTH) {
+        base_index_x_1 = base_index_x_0;
+    } else {
+        base_index_x_1 = base_index_x_0 + 1;
+    }
+
+    int base_index_y_0 = (int)(base_y);
+    int base_index_y_1;
+    if (base_y + 1 >= FULL_HD_HEIGHT) {
+        base_index_y_1 = base_index_y_0;
+    } else {
+        base_index_y_1 = base_index_y_0 + 1;
+    }
+    float q00 = tex2D<float>(input, base_index_x_0, base_index_y_0);
+    float q10 = tex2D<float>(input, base_index_x_1, base_index_y_0);
+    float q01 = tex2D<float>(input, base_index_x_0, base_index_y_1);
+    float q11 = tex2D<float>(input, base_index_x_1, base_index_y_1);
+
+    output[gpu_index] = q00*(1 - (base_x - gxi))*(1 - (base_y - (int)base_y)) +
+        q10*(base_x - gxi)*(1 - (base_y - (int)base_y)) +
+        q01*(1 - (base_x - gxi))*(base_y - (int)base_y) +
+        q11*(base_x - gxi)*(base_y - (int)base_y);
+}
+
 
 void run_tests(int task) {
     switch(task) {
@@ -300,6 +336,12 @@ void run_tests(int task) {
             dim3 block (block_size, block_size);
             dim3 grid(ceil(outWidth/(float)block_size), ceil(outHeight/(float)block_size), 1);
 
+            // warm up
+            upscaleGPU_global<<<grid, block>>>(gpu_in, gpu_intermediate);
+            cudaDeviceSynchronize();
+            convolveGPU_global<<<grid, block>>>(gpu_intermediate, gpu_out, gpu_kernel);
+            cudaDeviceSynchronize();
+
             double gpu_start = cpuSecond();
             for(int i = 0; i < GPU_NUM_ITERATIONS; i++) {
                 upscaleGPU_global<<<grid, block>>>(gpu_in, gpu_intermediate);
@@ -371,6 +413,12 @@ void run_tests(int task) {
             dim3 block (block_size, block_size);
             dim3 grid(ceil(outWidth/(float)block_size), ceil(outHeight/(float)block_size), 1);
 
+            // warm up
+            upscaleGPU_global<<<grid, block>>>(gpu_in, gpu_intermediate);
+            cudaDeviceSynchronize();
+            convolveGPU_constant<<<grid, block>>>(gpu_intermediate, gpu_out);
+            cudaDeviceSynchronize();
+
             double gpu_start = cpuSecond();
             for(int i = 0; i < GPU_NUM_ITERATIONS; i++) {
                 upscaleGPU_global<<<grid, block>>>(gpu_in, gpu_intermediate);
@@ -393,6 +441,103 @@ void run_tests(int task) {
             free(input_cpu);
             free(output_cpu);
             free(output_gpu);
+
+            break;
+        }
+        case 4: {
+            printf("Running Task 4: GPU Upscaling with Texture Memory + Convolution with Constant Memory\n");
+            
+            int inWidth = FULL_HD_WIDTH;
+            int inHeight = FULL_HD_HEIGHT;
+            int outWidth = TARGET_4K_WIDTH;
+            int outHeight = TARGET_4K_HEIGHT;
+
+            int kernelSize = FILTER_WIDTH * FILTER_WIDTH * sizeof(float);
+            float *kernel_cpu = (float*)malloc(kernelSize);            
+
+            // initialize a simple averaging kernel for demonstration
+            for (int i = 0; i < FILTER_WIDTH * FILTER_WIDTH; i++) {
+                kernel_cpu[i] = 1.0f / (FILTER_WIDTH * FILTER_WIDTH);
+            }
+            // Copy kernel to constant memory
+            cudaMemcpyToSymbol(kernel_const_gpu, kernel_cpu, kernelSize);
+
+            size_t inSize = inWidth * inHeight * sizeof(float);
+            size_t outSize = outWidth * outHeight * sizeof(float);
+
+            // allocate host memory
+            float *input_cpu = (float*)malloc(inSize);
+            float *output_cpu = (float*)malloc(outSize);
+            float *output_gpu = (float*)malloc(outSize);
+            
+            float *gpu_intermediate;
+            float *gpu_out; 
+            cudaMalloc((void**)&gpu_intermediate, outSize);
+            cudaMalloc((void**)&gpu_out, outSize);
+
+            // initialize input data
+            initialData(input_cpu, inWidth * inHeight);
+
+            cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindFloat);
+            cudaArray* cuArray;
+            cudaMallocArray(&cuArray, &channelDesc, inWidth, inHeight);
+            cudaMemcpy2DToArray(cuArray, 0, 0, input_cpu, inWidth * sizeof(float), inWidth * sizeof(float), inHeight, cudaMemcpyHostToDevice);
+
+            // create texture object
+            struct cudaResourceDesc resDesc;
+            memset(&resDesc, 0, sizeof(resDesc));
+            resDesc.resType = cudaResourceTypeArray;
+            resDesc.res.array.array = cuArray;
+
+            struct cudaTextureDesc texDesc;
+            memset(&texDesc, 0, sizeof(texDesc));
+            texDesc.addressMode[0] = cudaAddressModeClamp;
+            texDesc.addressMode[1] = cudaAddressModeClamp;
+            texDesc.filterMode = cudaFilterModePoint;
+            texDesc.readMode = cudaReadModeElementType;
+            texDesc.normalizedCoords = 0;
+
+            cudaTextureObject_t texObj = 0;
+            cudaCreateTextureObject(&texObj, &resDesc, &texDesc, NULL);
+
+            // run reference CPU implementation
+            upscaleCPU(input_cpu, output_cpu, kernel_cpu);
+
+            int block_size = 32;
+            dim3 block (block_size, block_size);
+            dim3 grid(ceil(outWidth/(float)block_size), ceil(outHeight/(float)block_size), 1);
+
+            // warm up
+            upscaleGPU_texture<<<grid, block>>>(texObj, gpu_intermediate);
+            cudaDeviceSynchronize();
+            convolveGPU_constant<<<grid, block>>>(gpu_intermediate, gpu_out);
+            cudaDeviceSynchronize();
+
+            double gpu_start = cpuSecond();
+            for(int i = 0; i < GPU_NUM_ITERATIONS; i++) {
+                upscaleGPU_texture<<<grid, block>>>(texObj, gpu_intermediate);
+                cudaDeviceSynchronize();
+                convolveGPU_constant<<<grid, block>>>(gpu_intermediate, gpu_out);
+                cudaDeviceSynchronize();
+            }
+            double gpu_end = cpuSecond();
+            printf("GPU Upscaling + Convolution (constant memory) Time: %f ms \n", (gpu_end - gpu_start) / GPU_NUM_ITERATIONS * 1000);
+
+            cudaMemcpy(output_gpu, gpu_out, outSize, cudaMemcpyDeviceToHost);
+
+            
+            cudaDestroyTextureObject(texObj);
+            cudaFreeArray(cuArray);
+
+            cudaFree(gpu_intermediate);
+            cudaFree(gpu_out);
+
+            checkResult(output_cpu, output_gpu, outWidth*outHeight);
+
+            free(kernel_cpu);
+            free(input_cpu);
+            free(output_cpu);
+            free(output_gpu);
             break;
         }
         default:
@@ -401,9 +546,9 @@ void run_tests(int task) {
 }
 
 int main() {
-    // set up image dimensions
-    run_tests(1);
-    run_tests(2);
+    // run_tests(1);
+    // run_tests(2);
     run_tests(3);
+    run_tests(4);
     return 0;
 }
