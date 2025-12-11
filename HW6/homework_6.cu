@@ -121,6 +121,9 @@ __global__ void upscaleGPU_global(float *input, float *output) {
     // GPU bilinear interpolation
     int xIndex = blockIdx.x*blockDim.x + threadIdx.x;
     int yIndex = blockIdx.y*blockDim.y + threadIdx.y;
+
+    if (xIndex >= TARGET_4K_WIDTH || yIndex >= TARGET_4K_HEIGHT) return; // check for bounds
+
     int gpu_index = xIndex + yIndex*TARGET_4K_WIDTH;
     float ratio = (float)FULL_HD_WIDTH / (float)TARGET_4K_WIDTH; // should be 0.5 for 1920->3840
 
@@ -215,6 +218,9 @@ __global__ void convolveGPU_constant(float *input, float *output) {
 __global__ void upscaleGPU_texture(cudaTextureObject_t input, float *output) {
     int xIndex = blockIdx.x*blockDim.x + threadIdx.x;
     int yIndex = blockIdx.y*blockDim.y + threadIdx.y;
+
+    if (xIndex >= TARGET_4K_WIDTH || yIndex >= TARGET_4K_HEIGHT) return; // check for bounds
+
     int gpu_index = xIndex + yIndex*TARGET_4K_WIDTH;
     float ratio = (float)FULL_HD_WIDTH / (float)TARGET_4K_WIDTH; // should be 0.5 for 1920->3840
 
@@ -546,8 +552,8 @@ void run_tests(int task) {
 }
 
 int main() {
-    // run_tests(1);
-    // run_tests(2);
+    run_tests(1);
+    run_tests(2);
     run_tests(3);
     run_tests(4);
     return 0;
