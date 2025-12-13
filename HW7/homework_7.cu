@@ -104,14 +104,14 @@ void run_tests(int task) {
             printf("Max blocks per SM: %d\n", props.maxBlocksPerMultiProcessor);
             printf("Thread warp size: %d\n", props.warpSize);
 
+            printf("From this we can calculate an optimal launch configuration:\n");
+            printf("To maximize occupancy, we calculate BLOCK_SIZE as follows:\n");
             BLOCK_SIZE = props.maxThreadsPerMultiProcessor / props.maxBlocksPerMultiProcessor;
-            GRID_SIZE = props.multiProcessorCount * props.maxBlocksPerMultiProcessor;
-            
             printf("Suggested BLOCK_SIZE: %d\n", BLOCK_SIZE);
+            GRID_SIZE = props.multiProcessorCount * props.maxBlocksPerMultiProcessor;
             printf("Suggested GRID_SIZE: %d\n", GRID_SIZE);
 
             printf("We also need to know the number of elements in our 40 MB float array: \n");
-            printf("For 40 MB array size, use BLOCK_SIZE of 256 and GRID_SIZE of 544 for optimal performance.\n");
             printf("A 40 MB array contains %lu float elements.\n", 40 * 1024 * 1024 / sizeof(float));
             printf("\n\n");
 
@@ -132,7 +132,7 @@ void run_tests(int task) {
                 cpu_reduction(input, num_float);
             }            
             double end = cpuSecond();
-            printf("CPU Reduction Time: %f sec\n", (end - start) / CPU_NUM_ITERATIONS);
+            printf("CPU Reduction Time: %f ms\n", ((end - start) / CPU_NUM_ITERATIONS) * 1000.0f);
             free(input);
             break;
         }
@@ -174,7 +174,7 @@ void run_tests(int task) {
             float *gpu_compare_result = (float*) malloc(sizeof(float));
             cudaMemcpyFromSymbol(gpu_compare_result, gpu_result, sizeof(float));
             checkResult(&cpu_result, gpu_compare_result, 1);
-            printf("GPU Reduction Time: %f sec\n", (end - start) / GPU_NUM_ITERATIONS);
+            printf("GPU Reduction Time: %f ms\n", ((end - start) / GPU_NUM_ITERATIONS) * 1000.0f);
             cudaFree(gpu_input);
             free(cpu_input);          
             break;
@@ -211,7 +211,7 @@ void run_tests(int task) {
                 cudaDeviceSynchronize();
             }
             double end = cpuSecond();
-            printf("GPU Cascaded Reduction Time: %f sec\n", (end - start) / GPU_NUM_ITERATIONS);
+            printf("GPU Cascaded Reduction Time: %f ms\n", ((end - start) / GPU_NUM_ITERATIONS) * 1000.0f);
 
             float *gpu_compare_result = (float*) malloc(sizeof(float));
             cudaMemcpyFromSymbol(gpu_compare_result, gpu_result_cascaded, sizeof(float));

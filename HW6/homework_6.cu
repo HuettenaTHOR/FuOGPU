@@ -1,5 +1,8 @@
 #include <cuda.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdint.h>
 #include <sys/time.h>
 #include <math.h>
 /*
@@ -26,6 +29,75 @@ void initialData(float *ip, int size) {
     for (int i = 0; i < size; i++) {
         ip[i] = (float) (rand() & 0xFF) / 10.0f;
     }
+}
+
+// Simple PPM (P6) loader that converts RGB -> grayscale floats
+// Stores values in the same scale as initialData (0..25.5) by dividing by 10.
+// Returns true on success.
+bool loadPPM_as_gray(const char *filename, float *out, int expectedW, int expectedH) {
+    FILE *f = fopen(filename, "rb");
+    if (!f) return false;
+    char magic[3] = {0};
+    if (fscanf(f, "%2s", magic) != 1) { fclose(f); return false; }
+    if (strcmp(magic, "P6") != 0) { fclose(f); return false; }
+
+    int w=0, h=0, maxv=0;
+    // skip whitespace/comments and read width height and max
+    int c = fgetc(f);
+    while (c == '#') { // skip comment line
+        while (c != '\n' && c != EOF) c = fgetc(f);
+        c = fgetc(f);
+    }
+    ungetc(c, f);
+    if (fscanf(f, "%d %d %d", &w, &h, &maxv) != 3) { fclose(f); return false; }
+    // consume single whitespace char after maxv
+    fgetc(f);
+
+    if (w != expectedW || h != expectedH) {
+        // image size mismatch
+        fclose(f);
+        return false;
+    }
+
+    size_t npix = (size_t)w * (size_t)h;
+    unsigned char *buf = (unsigned char*)malloc(3 * npix);
+    if (!buf) { fclose(f); return false; }
+    size_t read = fread(buf, 1, 3*npix, f);
+    fclose(f);
+    if (read != 3*npix) { free(buf); return false; }
+
+    for (size_t i = 0; i < npix; ++i) {
+        unsigned char r = buf[3*i+0];
+        unsigned char g = buf[3*i+1];
+        unsigned char b = buf[3*i+2];
+        float lum = 0.299f * r + 0.587f * g + 0.114f * b; // 0..255
+        out[i] = lum / 10.0f; // match initialData scale (0..25.5)
+    }
+    free(buf);
+    return true;
+}
+
+// Write floats (grayscale) into a PPM P6 file. Values expected in same scale as initialData.
+bool write_gray_to_ppm(const char *filename, const float *in, int w, int h) {
+    FILE *f = fopen(filename, "wb");
+    if (!f) return false;
+    fprintf(f, "P6\n%d %d\n255\n", w, h);
+    size_t npix = (size_t)w * (size_t)h;
+    unsigned char *buf = (unsigned char*)malloc(3*npix);
+    if (!buf) { fclose(f); return false; }
+    for (size_t i = 0; i < npix; ++i) {
+        float v = in[i] * 10.0f; // back to 0..255
+        if (v < 0.f) v = 0.f;
+        if (v > 255.f) v = 255.f;
+        unsigned char c = (unsigned char)(v + 0.5f);
+        buf[3*i+0] = c;
+        buf[3*i+1] = c;
+        buf[3*i+2] = c;
+    }
+    fwrite(buf, 1, 3*npix, f);
+    free(buf);
+    fclose(f);
+    return true;
 }
 
 // from the lecture
@@ -279,8 +351,13 @@ void run_tests(int task) {
             float *input_cpu = (float *)malloc(inSize);
             float *output_cpu = (float *)malloc(outSize);
 
-            // initialize input data
-            initialData(input_cpu, inWidth * inHeight);
+            // initialize input data (try to load HW6/input.ppm, otherwise random)
+            if (!loadPPM_as_gray("HW6/input.ppm", input_cpu, inWidth, inHeight)) {
+                initialData(input_cpu, inWidth * inHeight);
+                printf("Warning: HW6/input.ppm not found or invalid - using random input.\n");
+            } else {
+                printf("Loaded HW6/input.ppm as input.\n");
+            }
 
             // CPU Upscaling
             double cpuStart = cpuSecond();
@@ -359,6 +436,10 @@ void run_tests(int task) {
             printf("GPU Upscaling + Convolution (global memory) Time: %f ms \n", (gpu_end - gpu_start) / GPU_NUM_ITERATIONS * 1000);
 
             cudaMemcpy(output_gpu, gpu_out, outSize, cudaMemcpyDeviceToHost);
+
+            // save results
+            write_gray_to_ppm("HW6/output_gpu.ppm", output_gpu, outWidth, outHeight);
+            write_gray_to_ppm("HW6/output_cpu.ppm", output_cpu, outWidth, outHeight);
 
             cudaFree(gpu_in);
             cudaFree(gpu_intermediate);

@@ -8,6 +8,8 @@ Number of SMs: 34
 Max threads per SM: 1536
 Max blocks per SM: 24
 Thread warp size: 32
+From this we can calculate an optimal launch configuration:
+To maximize occupancy, we calculate BLOCK_SIZE as follows:
 Suggested BLOCK_SIZE: 64
 Suggested GRID_SIZE: 816
 We also need to know the number of elements in our 40 MB float array: 
@@ -16,33 +18,35 @@ A 40 MB array contains 10485760 float elements.
 
 
 Running Task 1: CPU Reduction:
-CPU Reduction Time: 0.022748 sec
+CPU Reduction Time: 21.819310 ms
 Running Task 2: GPU Reduction Test with atomic add on global memory:
 Results match.
-GPU Reduction Time: 0.014661 sec
+GPU Reduction Time: 15.181743 ms
 Running Task 3: GPU Reduction Test with cascaded reduction:
-GPU Cascaded Reduction Time: 0.000234 sec
+GPU Cascaded Reduction Time: 0.224458 ms
 Results match.
 ~~~
 
 ## GPU Configuration:
-| Parameter                    | Value      |
-| ---------------------------- | ---------- |
-| Number of SMs                | 34         |
-| Max threads per SM           | 1536       |
-| Max blocks per SM            | 24         |
-| Warp size                    | 32         |
-| Suggested BLOCK_SIZE         | 64         |
-| Suggested GRID_SIZE          | 816        |
-| Array size                   | 40 MB      |
-| Number of float elements     | 10,485,760 |
-| Optimized BLOCK_SIZE (40 MB) | 256        |
-| Optimized GRID_SIZE (40 MB)  | 544        |
+| Parameter                    | Value       |
+| ---------------------------- | ----------- |
+| GPU                          | RTX 4060 Ti |
+| Compute Capability           | 8.9         |
+| Number of SMs                | 34          |
+| Max threads per SM           | 1536        |
+| Max blocks per SM            | 24          |
+| Warp size                    | 32          |
+| Suggested BLOCK_SIZE         | 64          |
+| Suggested GRID_SIZE          | 816         |
+| Array size                   | 40 MB       |
+| Number of float elements     | 10,485,760  |
+
 
 ## Formatted results
-| Task   | Description                               | Time (sec) | Status        |
-| ------ | ----------------------------------------- | ---------- | ------------- |
-| Task 1 | CPU Reduction                             | 0.022748   | –             |
-| Task 2 | GPU Reduction (atomic add, global memory) | 0.014661   | Results match |
-| Task 3 | GPU Cascaded Reduction                    | 0.000234   | Results match |
+| Task   | Description                              | Time (ms) | Status        |
+| ------ | ---------------------------------------- | --------- | ------------- |
+| Task 1 | CPU Reduction                            | 21.819310 | –             |
+| Task 2 | GPU Reduction (atomicAdd, global memory) | 15.181743 | Results match |
+| Task 3 | GPU Cascaded Reduction                   | 0.224458  | Results match |
+
 
