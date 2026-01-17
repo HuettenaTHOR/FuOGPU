@@ -6,7 +6,7 @@ For this Ben Olschar, 108021211678 and Frederik Hüttemann, 108021215247 coopera
 Running Task 1: CPU Reduction
 CPU-Avg-Time : 40.51799774ms
 
-Running Task 2: GPU global memory Image upscale and convolution
+Running Task 2: GPU reduction global memory 
 Reductions match. 
 
 GPU-Avg-Time global memory: 20.93264818ms

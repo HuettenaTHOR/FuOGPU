@@ -153,10 +153,10 @@ void run_test(int task) {
         }
         case 2: {
 
-            printf("Running Task 2: GPU global memory Image upscale and convolution\n");
+            printf("Running Task 2: GPU reduction (global memory)\n");
             
             int num_elements = (VECTOR_SIZE_MB * 1024 * 1024) / sizeof(float);
-            int bytes_in =num_elements * sizeof(float);
+            int bytes_in = num_elements * sizeof(float);
             
             float *h_vector_in = (float*) malloc(bytes_in);
             float *h_vector_out = (float*) malloc(sizeof(float));
