@@ -1,7 +1,6 @@
 # Homework 8 - Results
 
-## Execution Output
-
+## Unformatted Output
 ```
 =================================================================
 GPU Configuration Information
@@ -38,10 +37,10 @@ Reductions match.
 GPU-Avg-Time (Harris Cascaded + threadfence): 0.23119116ms
 ```
 
-## Performance Summary
+## Performance Summary (Formatted Output)
 
-| Implementation | Average Time | Speedup vs CPU |
-|----------------|--------------|----------------|
-| CPU Reduction (Sequential) | 9.95 ms | 1.0x |
-| GPU Atomic Cascaded (HW7) | 0.32 ms | 31.1x |
-| GPU Harris Cascaded + threadfence | 0.23 ms | 43.2x |
+| Implementation                    | Average Time  | Speedup vs CPU |  
+|-----------------------------------|---------------|----------------|  
+| CPU Reduction (Sequential)        | 9.95 ms       | 1.0x           |  
+| GPU Atomic Cascaded (HW7)         | 0.32 ms       | ~31.1x         |  
+| GPU Harris Cascaded + threadfence | 0.23 ms       | ~43.3x         |  

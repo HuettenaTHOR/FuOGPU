@@ -1,42 +1,34 @@
 # Homework 8 - Discussion
+For this Ben Olschar, 108021211678 and Frederik Hüttemann, 108021215247 cooperated with eachother. 
+We did implement the code on our own, but agreed to using one version. The discussion and results are made in cooperation.
 
-## What We Expected
+# Task Configuration
+For the GPU algorithms, we needed the BLOCK_SIZE and GRID_SIZE to launch the kernels. The BLOCK and GRID_SIZE for the cascaded algorithm from HW7 could be copy-pasted as they were already calculated in the last exercise.  
+To launch the kernel for the HW8 kernel, we need to calculate the number of active block on our GPU. For this the GPU config has been read using `cudaGetDeviceProperties`. First of all, we fixed the number of persistent blocks approximately equal to the maximum number of concurrently active block. Therefore `BLOCK_SIZE = 256;`.  
+The GRID_SIZE is the calculated using the following formula, to maximize the number of activate threads:
+$$
+\text{GRID\_SIZE}
+= \text{number of SMs} \cdot \frac{\text{max threads per SM}}{\text{BLOCK\_SIZE}}
+= 34 \cdot \frac{1536}{256} 
+= 204
+$$
+Therefore, we set `GRID_SIZE = 204`.
 
-1. **CPU Reduction Performance**: We expected the CPU reduction to be relatively slow since it's a sequential operation that cannot utilize the parallel nature of the GPU. The CPU must iterate through all 10+ million elements one by one.
+# Task 1: CPU reduction algorithm
+Here, a baseline on CPU is implemented used to compute the results. The reduction algorithm simply returns the sum of the array. The CPU is the slowest test because of sequential operations. The code has been copied from the last HW7 to maintain correctness.
 
-2. **GPU Atomic Cascaded (HW7)**: We expected decent speedup over CPU, but with some overhead from atomic operations. The atomic operations, while providing correctness, serialize access to shared and global memory locations which limits parallelism.
+# Task 2: GPU reduction using cascaded algorithm (HW7)
+I called this task 2, as this is also part of the code base. Here, we copy-pasted the algorithm from last homework to create a competitive result the Harris algorithm can compete against. As already stated in the last homework, the algorithm is significantly faster the the sequential CPU algorithm as this makes use of parallelism and tries to avoid blocking usage of `atomicAdd`.
 
-3. **Harris Cascaded Algorithm with threadfence**: We expected this implementation to be faster than the atomic approach because:
-   - **Sequential addressing** eliminates bank conflicts in shared memory
-   - **Unrolling the last warp** with volatile keyword removes unnecessary `__syncthreads()` calls within a warp
-   - **Cascaded algorithm** (accumulating in registers via grid-stride loops) reduces shared memory traffic
-   - **Persistent blocks** (GRID_SIZE = #SMs × #blocks_per_SM) ensures all SMs are fully occupied
-   - **`__threadfence()`** avoids launching a second kernel for final reduction, eliminating kernel launch overhead
+# Task 3: Harris Cascaded Algorithm with threadfence (HW8)
+This is the main task of the homework. Here, the optimizations should be implemented, presented in the lecture. Because some of the optimizations of the lecture were even more optimized by later suggestions, we only took the following optimizations:
+- **Reduction #3: Sequential Adressing**: this optimization tries to bank conflicts on the shared memory (this is also and optimized reduction for #1 and #2, as these reductions #1 and #2 suffer under bank conflicts).
+- **Reduction #5: Unroll last warp**: improves speed by removing unnecessary thread synchronization within a warp
+- **Reduction #7: Multiple Adds per Thread**: improves loading the data by already performing the first addition. (this optimizes the Reduction #4 where only a single addition is performed on loading)
+- **`__threadfence`**: improves addition on the final reduction 
 
-## What We Observed
+## What we expected
+Because the last weeks algorithm is already pretty optimized, no real speedup was expected. the Harris algorithm should be a bit faster, but its speed is still limited by hardware reads/writes.  
+The atomic cascaded algorithm took 0.32 ms on average to reduce the 40 MB float. The implementation of this week's homework is roughly 1.4 times faster. This is because of the reductions of sequential addressing, getting rid of unnecessary threadsyncs and using threadfence in the end. Overall, the algorithm is more optimized and therefore the speedup is expected.  
+Because the HW7 algorithm is already pretty good, the speedup of x1.4 is great, as the number of additions for both algorithms is the same. The speedup only comes from optimizing memory access and removing unnessecary kernel functions (threadsync).
 
-1. **CPU Reduction**: ~10 ms for 40MB (10,485,760 floats) - sequential performance as expected.
-
-2. **GPU Atomic Cascaded**: ~0.32 ms providing ~31x speedup over CPU. This is already a significant improvement, utilizing thread coarsening and atomic operations.
-
-3. **Harris Cascaded with threadfence**: ~0.23 ms providing ~43x speedup over CPU and ~1.4x faster than atomic cascaded.
-
-## Analysis
-
-**Does the observation match the expectation?**
-
-Yes, the Harris cascaded algorithm with `__threadfence()` outperforms the atomic cascaded approach as expected.
-
-**Why is Harris Cascaded faster than Atomic Cascaded?**
-
-1. **Reduced atomic contention**: The Harris algorithm uses tree-based reduction within each block (with `warpReduce` using volatile shared memory), which is more efficient than every thread calling `atomicAdd` to a single shared variable.
-
-2. **Warp-level efficiency**: The `warpReduce` function with volatile keyword exploits SIMD execution within a warp - no synchronization needed since all threads in a warp execute in lockstep.
-
-3. **Single-kernel final reduction**: Using `__threadfence()` + `atomicInc(&count)` allows the last block to perform final reduction without launching a second kernel, eliminating kernel launch overhead.
-
-4. **Optimized memory access**: Sequential addressing (Reduction #3 pattern) ensures no bank conflicts in shared memory, while the cascaded approach minimizes shared memory writes by accumulating in registers first.
-
-**Block/Grid Configuration Rationale**:
-
-We used persistent blocks where GRID_SIZE = 34 SMs × 24 blocks/SM = 816 blocks, and BLOCK_SIZE = 1536 threads/SM ÷ 24 blocks/SM = 64 threads per block. This configuration ensures maximum occupancy on the RTX 4060 Ti while keeping enough threads per block for efficient warp-level reduction.

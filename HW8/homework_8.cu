@@ -73,7 +73,9 @@ __global__ void gpuReductionAtomicCascaded(float* vector_in, int elements, float
     float sum_thread = 0.0f;
     __shared__ float sum_block;
     
-    if (threadIdx.x == 0) sum_block = 0.0f;
+    if (threadIdx.x == 0) {
+        sum_block = 0.0f;
+    }
     __syncthreads();
 
     int index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -116,10 +118,12 @@ __global__ void gpuReductionHarrisCascaded(float* g_idata, unsigned int N, float
     __shared__ bool isLastBlockDone;
     
     unsigned int tid = threadIdx.x;
+    
     unsigned int blockSize = blockDim.x;
    
-    // Reduction #7: Multiple Adds per Thread (optimization of #4)
-   
+    // Reduction #7: Multiple Adds per Thread (optimization of #7)
+    // a bit different then the while loop on the lecture to capture out-of-bounds accesses
+    // additionally, I find the for loop more readable in this case   
     float mySum = 0.0f;
     for (unsigned int i = blockIdx.x * (blockSize*2) + tid; i < N; i += blockSize * gridDim.x * 2) {
         mySum += g_idata[i];
@@ -204,12 +208,11 @@ void run_test(int task) {
 
             // Persistent blocks: Number of blocks = #MP x #resident blocks
             printf("\nFrom this we can calculate an optimal launch configuration:\n");
-            printf("To maximize occupancy, we calculate BLOCK_SIZE as follows:\n");
-            BLOCK_SIZE = props.maxThreadsPerMultiProcessor / props.maxBlocksPerMultiProcessor;
-            printf("BLOCK_SIZE = max_threads_per_SM / max_blocks_per_SM = %d\n", BLOCK_SIZE);
-            GRID_SIZE = props.multiProcessorCount * props.maxBlocksPerMultiProcessor;
-            printf("GRID_SIZE = num_SMs * max_blocks_per_SM = %d (persistent blocks)\n", GRID_SIZE);
-
+            BLOCK_SIZE = 256; // oder 512
+            int blocksPerSM = props.maxThreadsPerMultiProcessor / BLOCK_SIZE;
+            GRID_SIZE  = props.multiProcessorCount * blocksPerSM;
+            printf("Optimal BLOCK_SIZE: %d\n", BLOCK_SIZE);
+            printf("Optimal GRID_SIZE: %d\n", GRID_SIZE);
             printf("\nVector information:\n");
             printf("Vector size: %d MB\n", VECTOR_SIZE_MB);
             printf("Number of float elements: %lu\n", 
@@ -271,8 +274,11 @@ void run_test(int task) {
             
             cudaMemcpy(d_vector_in, h_vector_in, bytes_in, cudaMemcpyHostToDevice);
 
-            dim3 dimBlock(BLOCK_SIZE, 1);
-            dim3 dimGrid(GRID_SIZE, 1);
+            // these values where calculated in HW7
+            int hw7_BLOCK_SIZE = 64;
+            int hw7_GRID_SIZE = 640;
+            dim3 dimBlock(hw7_BLOCK_SIZE, 1);
+            dim3 dimGrid(hw7_GRID_SIZE, 1);
 
             double gpu_start = cpuSecond();
 
