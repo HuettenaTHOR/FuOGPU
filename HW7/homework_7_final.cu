@@ -106,9 +106,7 @@ __global__ void gpuReductionCascaded(float* vector_in, int elements, float* redu
         if (threadIdx.x == 0){
             atomicAdd(reduction_out, sum_block);
         }
-    }
-    
-    
+    }    
 }
 
 
