@@ -1,9 +1,4 @@
 # Homework 9 - Results
-
-## Unformatted output:
-~~~
-# Homework 9 - Results
-
 ## Unformatted output:
 ~~~
 Running Task 1: CPU Scan

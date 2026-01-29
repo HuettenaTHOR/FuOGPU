@@ -34,14 +34,15 @@ bool checkResult(float* hostRef, float* gpuRef, int length){
 }
 
 
-// from the lecture
+// different from lecture
+// because we otherwise would run into precision errors for large summations, we fill the array with floats from 0 to 9
 void initialData(float *ip, int size){
     
     time_t t;
     srand((unsigned) time(&t));
     for (int i = 0; i < size; i++) {
         // ip[i] = (float) (rand() & 0xFF) / 10.0f;
-        ip[i] = (float)(i % 10); // for better verification 
+        ip[i] = (float)(i % 10); // for improved precision
     }
 }
 
@@ -56,7 +57,7 @@ double cpuSecond()
 
 // Task 1: CPU Scan Algorithm (Baseline)
 void cpuScan(float* output, float* input, int length){
-    output[0] = input[0];
+    output[0] = input[0]; 
     for (int i = 1; i < length; i++){
         output[i] = output[i - 1] + input[i];
     }
