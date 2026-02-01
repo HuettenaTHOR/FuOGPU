@@ -1,59 +1,62 @@
-# Homework 8 - Results
+# Homework 10 - Results
 
-## Unformatted Output
+## Task 0: Execution Time Measurements (Full HD: 1920 x 1080)
+
+| Operation | Execution Time |
+|-----------|----------------|
+| Host-to-Device transfer | 1.44 ms |
+| Kernel execution | 1.47 ms |
+| Device-to-Host transfer | 1.35 ms |
+
+The three phases are approximately balanced (~1.4-1.5 ms each), enabling effective overlap with CUDA streams.
+
+## Task 1 & 2: Processing 100 Full HD Images
+
+### Unformatted Output
 ```
-Running Task 0: finding optimal hyperparamters so "host-to-device", "kernel execution", and "device-to-host" each take approximately 8.00 ms
-Finding optimal image size for host-to-device transfer...
-Image size: 1024 x 1024, Host-to-Device time: 1.44 ms
-Image size: 1024 x 1024, Device-to-Host time: 0.74 ms
+Task 0: Measuring execution times for Full HD images (1920 x 1080)
 
-Image size: 1536 x 1536, Host-to-Device time: 2.04 ms
-Image size: 1536 x 1536, Device-to-Host time: 1.68 ms
+Host-to-Device transfer time: 1.44 ms (avg of 10 runs)
+Kernel execution time: 1.47 ms (avg of 10 runs)
+Device-to-Host transfer time: 1.35 ms (avg of 10 runs)
 
-Image size: 2048 x 2048, Host-to-Device time: 3.21 ms
-Image size: 2048 x 2048, Device-to-Host time: 2.70 ms
+Summary: H2D=1.44ms, Kernel=1.47ms, D2H=1.35ms
 
-Image size: 2560 x 2560, Host-to-Device time: 4.70 ms
-Image size: 2560 x 2560, Device-to-Host time: 4.14 ms
+Task 1: Processing 100 Full HD images without streaming (10 runs for averaging)
 
-Image size: 3072 x 3072, Host-to-Device time: 6.76 ms
-Image size: 3072 x 3072, Device-to-Host time: 5.90 ms
+  Run 1: 418.32 ms
+  Run 2: 415.23 ms
+  Run 3: 414.29 ms
+  Run 4: 414.25 ms
+  Run 5: 418.46 ms
+  Run 6: 413.88 ms
+  Run 7: 414.02 ms
+  Run 8: 414.19 ms
+  Run 9: 416.08 ms
+  Run 10: 421.61 ms
 
-Image size: 3584 x 3584, Host-to-Device time: 9.64 ms
-Image size: 3584 x 3584, Device-to-Host time: 8.19 ms
+Average time (no streaming): 416.03 ms
 
-Optimal image size for host-to-device transfer: 3584 x 3584 (9.64 ms)
-Finding optimal kernel execution repetition time...
-Repetitions: 10, Kernel execution time: 0.54 ms
-Repetitions: 20, Kernel execution time: 1.10 ms
-Repetitions: 30, Kernel execution time: 1.62 ms
-Repetitions: 40, Kernel execution time: 2.16 ms
-Repetitions: 50, Kernel execution time: 2.70 ms
-Repetitions: 60, Kernel execution time: 3.24 ms
-Repetitions: 70, Kernel execution time: 3.76 ms
-Repetitions: 80, Kernel execution time: 4.29 ms
-Repetitions: 90, Kernel execution time: 4.82 ms
-Repetitions: 100, Kernel execution time: 5.03 ms
-Repetitions: 110, Kernel execution time: 5.53 ms
-Repetitions: 120, Kernel execution time: 5.97 ms
-Repetitions: 130, Kernel execution time: 6.55 ms
-Repetitions: 140, Kernel execution time: 7.08 ms
-Repetitions: 150, Kernel execution time: 7.47 ms
-Optimal repetitions for kernel execution: 156 (8.19 ms)
-With the determined image size of 3584 x 3584, host-to-device transfer, kernel execution, and device-to-host transfer should each take approximately 8.00 ms.
+Task 2: Processing 100 Full HD images WITH streaming (4 streams, 10 runs for averaging)
 
+  Run 1: 570.15 ms (warmup)
+  Run 2: 379.15 ms
+  Run 3: 378.72 ms
+  Run 4: 380.82 ms
+  Run 5: 379.63 ms
+  Run 6: 380.44 ms
+  Run 7: 379.88 ms
+  Run 8: 379.48 ms
+  Run 9: 381.05 ms
+  Run 10: 380.99 ms
 
-Running 100 images of size 3584 x 3584 through the kernel with 156 repetitions each without streaming...
-Total time without streaming for 100 images: 6316.37 ms
-
-Running 100 images of size 3584 x 3584 through the kernel with 156 repetitions each with streaming...
-Total time with streaming for 100 images: 2824.66 ms
+Average time WITH streaming: 380.02 ms (excluding warmup)
 ```
 
-## Performance Summary (Formatted Output)
+## Performance Summary
 
-| Implementation                    | Elapsed time  | Speedup        |
-|-----------------------------------|---------------|----------------|  
-| GPU - no streaming                | 6316.37 ms    | 1.0x           |  
-| GPU - streaming                   | 2824.66 ms    | ~2.24x         |  
+| Implementation | Average Time | Speedup |
+|----------------|--------------|---------|
+| GPU - no streaming | 416.03 ms | baseline |
+| GPU - with streaming (4 streams) | 380.02 ms | **1.095x (9.5%)** |  
 
