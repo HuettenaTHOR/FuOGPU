@@ -1,62 +1,46 @@
 # Homework 10 - Results
 
-## Task 0: Execution Time Measurements (Full HD: 1920 x 1080)
+## Unformatted Output
+~~~
+Running Task 1: Single GPU Image convolution
+
+H2D Data-Transfer: 1.05905533ms
+GPU-Avg-Time (convolution) global memory: 2.03315711ms
+D2H Data-Transfer: 0.80490112ms
+
+Running Task 2: 100 sequential GPU Image convolution
+
+H2D avg Data-Transfer: 1.05138302ms
+H2D all Data-Transfer: 105.13830185ms
+
+GPU-Avg-Time convolution sequential: 4.37034607ms
+GPU-All-Time convolution sequential: 437.03460693ms
+
+D2H avg Data-Transfer: 0.69632292ms
+D2H all Data-Transfer: 69.63229179ms
+
+Time for all (sequential): 611.80520058ms
+
+Running Task 3: 100 concurrent GPU Image convolution
+
+All-Time (Avg per Image): 4.10706997ms
+All-Time (All Images): 410.70699692ms
+Success!
+~~~
+
+## Task 1: Execution Time Measurements (Full HD: 1920 x 1080)
 
 | Operation | Execution Time |
 |-----------|----------------|
-| Host-to-Device transfer | 1.44 ms |
-| Kernel execution | 1.47 ms |
-| Device-to-Host transfer | 1.35 ms |
+| Host-to-Device transfer | 1.06 ms |
+| Kernel execution | 2.03 ms |
+| Device-to-Host transfer | 0.80 ms |
 
-The three phases are approximately balanced (~1.4-1.5 ms each), enabling effective overlap with CUDA streams.
-
-## Task 1 & 2: Processing 100 Full HD Images
-
-### Unformatted Output
-```
-Task 0: Measuring execution times for Full HD images (1920 x 1080)
-
-Host-to-Device transfer time: 1.44 ms (avg of 10 runs)
-Kernel execution time: 1.47 ms (avg of 10 runs)
-Device-to-Host transfer time: 1.35 ms (avg of 10 runs)
-
-Summary: H2D=1.44ms, Kernel=1.47ms, D2H=1.35ms
-
-Task 1: Processing 100 Full HD images without streaming (10 runs for averaging)
-
-  Run 1: 418.32 ms
-  Run 2: 415.23 ms
-  Run 3: 414.29 ms
-  Run 4: 414.25 ms
-  Run 5: 418.46 ms
-  Run 6: 413.88 ms
-  Run 7: 414.02 ms
-  Run 8: 414.19 ms
-  Run 9: 416.08 ms
-  Run 10: 421.61 ms
-
-Average time (no streaming): 416.03 ms
-
-Task 2: Processing 100 Full HD images WITH streaming (4 streams, 10 runs for averaging)
-
-  Run 1: 570.15 ms (warmup)
-  Run 2: 379.15 ms
-  Run 3: 378.72 ms
-  Run 4: 380.82 ms
-  Run 5: 379.63 ms
-  Run 6: 380.44 ms
-  Run 7: 379.88 ms
-  Run 8: 379.48 ms
-  Run 9: 381.05 ms
-  Run 10: 380.99 ms
-
-Average time WITH streaming: 380.02 ms (excluding warmup)
-```
 
 ## Performance Summary
 
 | Implementation | Average Time | Speedup |
 |----------------|--------------|---------|
-| GPU - no streaming | 416.03 ms | baseline |
-| GPU - with streaming (4 streams) | 380.02 ms | **1.095x (9.5%)** |  
+| GPU - no streaming | 611.81 ms | baseline |
+| GPU - with streaming | 410.71 ms | **1.49x** |  
 
